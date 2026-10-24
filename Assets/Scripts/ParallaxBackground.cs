@@ -1,34 +1,83 @@
 using UnityEngine;
+using static UnityEngine.Audio.GeneratorInstance;
 
 public class ParallaxBackground : MonoBehaviour
 {
-    [Header("Target Settings")]
-    public Transform cameraTransform;
+    [Header("Target (Player or Camera)")]
+    public Transform trackingTarget;
 
-    [Header("Parallax Effect")]
-    [Range(0f, 1f)]
-    public float parallaxEffectX = 0.5f;
+    private Transform[] backgrounds;
+    private float[] startPositionsX;
+    private float spriteWidth;
 
-    private float startPos;
+    [Range(0f, 2f)]
+    public float parallaxSpeed = 0.5f;
 
     void Start()
     {
-        if (cameraTransform == null && Camera.main != null)
+        if (trackingTarget == null)
         {
-            cameraTransform = Camera.main.transform;
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null) trackingTarget = player.transform;
+            else if (Camera.main != null) trackingTarget = Camera.main.transform;
         }
 
-        startPos = transform.position.x;
+        int count = transform.childCount;
+        backgrounds = new Transform[count];
+        startPositionsX = new float[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            backgrounds[i] = transform.GetChild(i);
+            startPositionsX[i] = backgrounds[i].position.x;
+        }
+
+        if (count > 0)
+        {
+            SpriteRenderer sr = backgrounds[0].GetComponent<SpriteRenderer>();
+            if (sr != null)
+            {
+                spriteWidth = sr.bounds.size.x;
+            }
+            else
+            {
+                spriteWidth = 20f;
+            }
+        }
     }
 
     void LateUpdate()
     {
-        if (cameraTransform == null) return;
+        if (trackingTarget == null) return;
 
-        // Calculate distance the camera has moved relative to the effect multiplier
-        float dist = cameraTransform.position.x * parallaxEffectX;
+        Vector3 parentPos = transform.position;
+        parentPos.x = trackingTarget.position.x;
+        transform.position = parentPos;
 
-        // Apply the new position while keeping original Y and Z coordinates
-        transform.position = new Vector3(startPos + dist, transform.position.y, transform.position.z);
+        float targetX = trackingTarget.position.x;
+
+        for (int i = 0; i < backgrounds.Length; i++)
+        {
+            float speedMultiplier = (float)(i + 1) / backgrounds.Length * parallaxSpeed;
+
+            float distanceMoved = targetX * (1 - speedMultiplier);
+
+            float newX = startPositionsX[i] + ((targetX - startPositionsX[i]) * speedMultiplier);
+
+            float offsetFromTarget = targetX - backgrounds[i].position.x;
+
+            if (offsetFromTarget > spriteWidth)
+            {
+                startPositionsX[i] += spriteWidth;
+            }
+            else if (offsetFromTarget < -spriteWidth)
+            {
+                startPositionsX[i] -= spriteWidth;
+            }
+
+            Vector3 pos = backgrounds[i].position;
+            pos.x = startPositionsX[i] + ((targetX - startPositionsX[i]) * speedMultiplier);
+            backgrounds[i].position = pos;
+        }
     }
 }
