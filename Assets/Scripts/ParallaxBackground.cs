@@ -1,83 +1,44 @@
+using System.Collections.Generic;
 using UnityEngine;
-using static UnityEngine.Audio.GeneratorInstance;
 
+[ExecuteInEditMode]
 public class ParallaxBackground : MonoBehaviour
 {
-    [Header("Target (Player or Camera)")]
-    public Transform trackingTarget;
-
-    private Transform[] backgrounds;
-    private float[] startPositionsX;
-    private float spriteWidth;
-
-    [Range(0f, 2f)]
-    public float parallaxSpeed = 0.5f;
+    public ParallaxCamera parallaxCamera;
+    List<ParallaxLayer> parallaxLayers = new List<ParallaxLayer>();
 
     void Start()
     {
-        if (trackingTarget == null)
-        {
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null) trackingTarget = player.transform;
-            else if (Camera.main != null) trackingTarget = Camera.main.transform;
-        }
+        if (parallaxCamera == null)
+            parallaxCamera = Camera.main.GetComponent<ParallaxCamera>();
 
-        int count = transform.childCount;
-        backgrounds = new Transform[count];
-        startPositionsX = new float[count];
+        if (parallaxCamera != null)
+            parallaxCamera.onCameraTranslate += Move;
 
-        for (int i = 0; i < count; i++)
-        {
-            backgrounds[i] = transform.GetChild(i);
-            startPositionsX[i] = backgrounds[i].position.x;
-        }
+        SetLayers();
+    }
 
-        if (count > 0)
+    void SetLayers()
+    {
+        parallaxLayers.Clear();
+
+        for (int i = 0; i < transform.childCount; i++)
         {
-            SpriteRenderer sr = backgrounds[0].GetComponent<SpriteRenderer>();
-            if (sr != null)
+            ParallaxLayer layer = transform.GetChild(i).GetComponent<ParallaxLayer>();
+
+            if (layer != null)
             {
-                spriteWidth = sr.bounds.size.x;
-            }
-            else
-            {
-                spriteWidth = 20f;
+                layer.name = "Layer-" + i;
+                parallaxLayers.Add(layer);
             }
         }
     }
 
-    void LateUpdate()
+    void Move(float delta)
     {
-        if (trackingTarget == null) return;
-
-        Vector3 parentPos = transform.position;
-        parentPos.x = trackingTarget.position.x;
-        transform.position = parentPos;
-
-        float targetX = trackingTarget.position.x;
-
-        for (int i = 0; i < backgrounds.Length; i++)
+        foreach (ParallaxLayer layer in parallaxLayers)
         {
-            float speedMultiplier = (float)(i + 1) / backgrounds.Length * parallaxSpeed;
-
-            float distanceMoved = targetX * (1 - speedMultiplier);
-
-            float newX = startPositionsX[i] + ((targetX - startPositionsX[i]) * speedMultiplier);
-
-            float offsetFromTarget = targetX - backgrounds[i].position.x;
-
-            if (offsetFromTarget > spriteWidth)
-            {
-                startPositionsX[i] += spriteWidth;
-            }
-            else if (offsetFromTarget < -spriteWidth)
-            {
-                startPositionsX[i] -= spriteWidth;
-            }
-
-            Vector3 pos = backgrounds[i].position;
-            pos.x = startPositionsX[i] + ((targetX - startPositionsX[i]) * speedMultiplier);
-            backgrounds[i].position = pos;
+            layer.Move(delta);
         }
     }
 }
