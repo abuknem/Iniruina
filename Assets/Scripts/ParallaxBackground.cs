@@ -1,44 +1,46 @@
-using System.Collections.Generic;
 using UnityEngine;
 
-[ExecuteInEditMode]
 public class ParallaxBackground : MonoBehaviour
 {
-    public ParallaxCamera parallaxCamera;
-    List<ParallaxLayer> parallaxLayers = new List<ParallaxLayer>();
+    [Header("Target Setup")]
+    [Tooltip("Drag your Main Camera here. Leave blank to auto-find Camera.main.")]
+    public Transform cameraTransform;
 
-    void Start()
+    [Header("Parallax Settings")]
+    [Tooltip("How much this background group moves relative to the camera (0 = static, 1 = moves 1:1 with camera).")]
+    [Range(0f, 1f)]
+    public float parallaxEffectMultiplier = 0.5f;
+
+    private Vector3 lastCameraPosition;
+
+    private void Start()
     {
-        if (parallaxCamera == null)
-            parallaxCamera = Camera.main.GetComponent<ParallaxCamera>();
-
-        if (parallaxCamera != null)
-            parallaxCamera.onCameraTranslate += Move;
-
-        SetLayers();
-    }
-
-    void SetLayers()
-    {
-        parallaxLayers.Clear();
-
-        for (int i = 0; i < transform.childCount; i++)
+        if (cameraTransform == null)
         {
-            ParallaxLayer layer = transform.GetChild(i).GetComponent<ParallaxLayer>();
-
-            if (layer != null)
+            if (Camera.main != null)
             {
-                layer.name = "Layer-" + i;
-                parallaxLayers.Add(layer);
+                cameraTransform = Camera.main.transform;
+            }
+            else
+            {
+                Debug.LogError("ParentParallax: No Main Camera found in the scene!");
+                enabled = false;
+                return;
             }
         }
+
+        lastCameraPosition = cameraTransform.position;
     }
 
-    void Move(float delta)
+    private void LateUpdate()
     {
-        foreach (ParallaxLayer layer in parallaxLayers)
-        {
-            layer.Move(delta);
-        }
+        // Calculate how far the camera moved since the last frame
+        Vector3 deltaMovement = cameraTransform.position - lastCameraPosition;
+
+        // Move this parent object (and by extension, all its children) by the parallax multiplier
+        transform.position += new Vector3(deltaMovement.x * parallaxEffectMultiplier, deltaMovement.y * parallaxEffectMultiplier, 0);
+
+        // Update the last camera position for the next frame
+        lastCameraPosition = cameraTransform.position;
     }
 }
